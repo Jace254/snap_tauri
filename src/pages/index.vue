@@ -8,13 +8,16 @@ const canvas = ref<HTMLCanvasElement>()
 const recording = ref(false)
 const unlisten = ref<UnlistenFn>()
 const loadRecording = ref(true)
+const frameCount = ref(0)
+const drawnCount = ref(0)
 
 async function setupFrameListener() {
   const c = canvas.value?.getContext('2d')
   c!.fillStyle = '#000'
   let hasntPlayed = true
 
-  unlisten.value = await listen('frame', async (event) => {
+  unlisten.value = await listen('frame', (event) => {
+    frameCount.value += 1
     const frame = JSON.parse(event.payload as string)
     const data = new Uint8Array(frame.data)
     const width = frame.width as number
@@ -31,21 +34,23 @@ async function setupFrameListener() {
       timestamp: frame.pts as number,
       codedHeight: height,
       codedWidth: width,
-      format: 'RGBA',
+      format: 'BGRA',
       displayWidth: width,
       displayHeight: height,
     })
 
-    const imageBitmap = await createImageBitmap(videoFrame)
-    videoFrame.close()
+    createImageBitmap(videoFrame).then((imageBitmap) => {
+      videoFrame.close()
 
-    function draw() {
-      c?.clearRect(0, 0, width, height)
-      c?.fillRect(0, 0, width, height)
-      c?.drawImage(imageBitmap, 0, 0)
-    }
+      function draw() {
+        c?.clearRect(0, 0, width, height)
+        c?.fillRect(0, 0, width, height)
+        c?.drawImage(imageBitmap, 0, 0)
+        drawnCount.value += 1
+      }
 
-    window.requestAnimationFrame(draw)
+      window.requestAnimationFrame(draw)
+    })
   })
 }
 
@@ -73,7 +78,7 @@ onUnmounted(() => {
 <template>
   <div>
     <div class="relative h-[100vh] w-full flex flex-col items-center justify-center bg-black">
-      <div class="h-50px w-full border-b border-border bg-accent py-2">
+      <div class="h-50px w-full flex items-center justify-center gap-2 border-b border-border bg-accent py-2">
         <template v-if="recording">
           <Button
             rounded
@@ -99,6 +104,8 @@ onUnmounted(() => {
             Start Recording
           </Button>
         </template>
+        <p>Frame Count {{ frameCount }}</p>
+        <p>Drawn Count {{ drawnCount }}</p>
       </div>
       <canvas
         ref="canvas"

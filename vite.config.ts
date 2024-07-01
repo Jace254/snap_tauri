@@ -19,11 +19,15 @@ import VueRouter from 'unplugin-vue-router/vite'
 import { VueRouterAutoImports } from 'unplugin-vue-router'
 
 export default defineConfig({
+  define: {
+    'global.require': require
+  },
   resolve: {
     alias: {
       '~/': `${path.resolve(__dirname, 'src')}/`,
     },
   },
+  optimizeDeps: { exclude: ['node-screenshots'] },
 
   plugins: [
     VueMacros({
@@ -63,7 +67,6 @@ export default defineConfig({
       ],
       vueTemplate: true,
     }),
-
     // https://github.com/antfu/unplugin-vue-components
     Components({
       // allow auto load markdown components under `./src/components/`

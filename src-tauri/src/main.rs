@@ -6,7 +6,10 @@ use lazy_static::lazy_static;
 use std::sync::Arc;
 use std::thread;
 use tauri::Manager;
-use xcap::Monitor;
+use scrap::{Capturer, Display};
+use std::io::ErrorKind::WouldBlock;
+use kanal::{unbounded, Sender, Receiver};
+use std::cmp::min;
 
 mod convert;
 
@@ -17,13 +20,98 @@ lazy_static! {
 #[tauri::command]
 fn stop_recording() {
     STOP_FLAG.store(true, Ordering::Release);
-    println!("Stopped recording")
+    println!("Stopped recording");
 }
 
+fn capture_frames(tx: Sender<(Vec<u8>, Duration)>) -> Result<(), String> {
+    let monitors = Display::all().unwrap();
+
+    let monitor = if monitors.is_empty() {
+        return Err("No monitor displays found".into());
+    } else {
+        monitors.into_iter().nth(0).unwrap()
+    };
+    let mut capturer = Capturer::new(monitor).map_err(|e| e.to_string())?;
+    let start = Instant::now();
+
+    let mut prev_frame: Option<Vec<u8>> = None;
+
+    while !STOP_FLAG.load(Ordering::Acquire) {
+        let now = Instant::now();
+        let time = now - start;
+
+        match capturer.frame() {
+            Ok(frame) => {
+                let frame_data = frame.to_vec();
+                let is_different = if let Some(prev) = &prev_frame {
+                    is_frame_different(prev, &frame_data)
+                } else {
+                    true
+                };
+
+                if is_different {
+                    prev_frame = Some(frame_data.clone());
+                    println!("captured frame, {}", time.as_secs() * 1_000 + time.subsec_millis() as u64);
+                    if tx.send((frame_data, time)).is_err() {
+                        break;
+                    }
+                }
+            },
+            Err(ref e) if e.kind() == WouldBlock => {
+                // Just wait
+            },
+            Err(e) => {
+                return Err(e.to_string());
+            }
+        }
+
+        let seconds_per_frame = Duration::from_nanos(1_000_000_000 / 24);
+        let dt = now.elapsed();
+        if dt < seconds_per_frame {
+            thread::sleep(seconds_per_frame - dt);
+        }
+    }
+
+    Ok(())
+}
+
+fn is_frame_different(prev: &[u8], current: &[u8]) -> bool {
+    if prev.len() != current.len() {
+        return true;
+    }
+
+    const DIFFERENCE_THRESHOLD: usize = 10_000; // Adjust the threshold as needed
+    let mut diff_count = 0;
+
+    for (p, c) in prev.iter().zip(current.iter()) {
+        if p != c {
+            diff_count += 1;
+            if diff_count > DIFFERENCE_THRESHOLD {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn emit_frames(rx: Receiver<(Vec<u8>, Duration)>, app_handle: tauri::AppHandle, width: u32, height: u32) {
+    while let Ok((frame_data, time)) = rx.recv() {
+        let payload = serde_json::json!({
+            "data": frame_data,
+            "pts": time.as_secs() * 1_000 + time.subsec_millis() as u64,
+            "width": width,
+            "height": height
+        });
+        match app_handle.emit_all("frame", payload.to_string()) {
+            Ok(_) => println!("emitting frame, {}", time.as_secs() * 1_000 + time.subsec_millis() as u64),
+            Err(e) => eprintln!("Failed to emit frame: {}", e)
+        }
+    }
+}
 
 #[tauri::command]
 async fn start_recording(app_handle: tauri::AppHandle) -> Result<(), String> {
-    let monitors = Monitor::all().unwrap();
+    let monitors = Display::all().unwrap();
 
     let monitor = if monitors.is_empty() {
         return Err("No monitor displays found".into());
@@ -31,45 +119,24 @@ async fn start_recording(app_handle: tauri::AppHandle) -> Result<(), String> {
         monitors.into_iter().nth(0).unwrap()
     };
 
-    let width = monitor.width();
-    let height = monitor.height();
+    let width = monitor.width() as u32;
+    let height = monitor.height() as u32;
 
-    let start = Instant::now();
     STOP_FLAG.store(false, Ordering::Release);
-    let app_handle_clone = app_handle.clone();
     println!("Started Recording");
 
-    let seconds_per_frame = Duration::from_nanos(1_000_000_000 / 240);
-    // let mut yuv = Vec::new();
+    let (tx, rx) = unbounded();
+    let app_handle_clone = app_handle.clone();
 
-
-    while !STOP_FLAG.load(Ordering::Acquire) {
-        let now = Instant::now();
-        let time = now - start;
-
-        match monitor.capture_image() {
-            Ok(frame) => {
-                // convert::argb_to_i420(&frame, &mut yuv);               
-                let payload = serde_json::json!({
-                    "data": frame.into_raw(),
-                    "pts": time.as_secs() * 1_000 + time.subsec_millis() as u64,
-                    "width": width,
-                    "height": height
-                });
-                app_handle_clone.emit_all("frame", payload.to_string()).unwrap();
-            },
-            Err(e) => {
-                println!("{}", e);
-                break;
-            }
+    thread::spawn(move || {
+        if let Err(e) = capture_frames(tx) {
+            eprintln!("Capture error: {}", e);
         }
+    });
 
-        let dt = now.elapsed();
-        if dt < seconds_per_frame {
-            thread::sleep(seconds_per_frame - dt);
-        }
-    }
-
+    thread::spawn(move || {
+        emit_frames(rx, app_handle_clone, width, height);
+    });
 
     Ok(())
 }
