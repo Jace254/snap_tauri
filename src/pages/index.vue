@@ -9,28 +9,29 @@ const recording = ref(false)
 const unlisten = ref<UnlistenFn>()
 const loadRecording = ref(true)
 
-
 async function setupFrameListener() {
   const c = canvas.value?.getContext('2d')
   c!.fillStyle = '#000'
+  let hasntPlayed = true
 
   unlisten.value = await listen('frame', async (event) => {
-    if (loadRecording.value && recording.value) {
-      loadRecording.value = false
-      console.log('started')
-    }
-    console.log('received')
     const frame = JSON.parse(event.payload as string)
     const data = new Uint8Array(frame.data)
     const width = frame.width as number
     const height = frame.height as number
-    canvas.value!.width = width
-    canvas.value!.height = height
+    if (loadRecording.value && recording.value) {
+      loadRecording.value = false
+    }
+    if (hasntPlayed) {
+      canvas.value!.width = width
+      canvas.value!.height = height
+      hasntPlayed = false
+    }
     const videoFrame = new VideoFrame(data.buffer, {
       timestamp: frame.pts as number,
       codedHeight: height,
       codedWidth: width,
-      format: 'I420',
+      format: 'RGBA',
       displayWidth: width,
       displayHeight: height,
     })
@@ -49,12 +50,8 @@ async function setupFrameListener() {
 }
 
 async function startRecording() {
-  // if (video.value) {
-  //   video.value!.src = URL.createObjectURL(mediaSource.value)
-  //   video.value!.load()
   recording.value = true
   invoke('start_recording').catch(err => console.error(err))
-  // }
 }
 
 function stopRecording() {
@@ -75,43 +72,37 @@ onUnmounted(() => {
 
 <template>
   <div>
-    <p>
-      Stream Screen
-    </p>
-    <p>
-      <em text-sm opacity-75>Screen Streamer to Browser</em>
-    </p>
-
-    <div py-4 />
-    <div class="flex flex-col items-center justify-center gap-4">
-      <template v-if="recording">
-        <Button
-          rounded
-          bg-rose-7
-          class="disabled:bg-rose-7:40"
-          p2 text-white :disabled="loadRecording"
-          @click="stopRecording"
-        >
-          <p v-if="!loadRecording">
-            Stop Recording
-          </p>
-          <p v-else>
-            Loading
-          </p>
-        </Button>
-      </template>
-      <template v-if="!recording">
-        <Button
-          rounded
-          bg-primary p2
-          text-black @click="startRecording"
-        >
-          Start Recording
-        </Button>
-      </template>
+    <div class="relative h-[100vh] w-full flex flex-col items-center justify-center bg-black">
+      <div class="h-50px w-full border-b border-border bg-accent py-2">
+        <template v-if="recording">
+          <Button
+            rounded
+            bg-rose-7
+            class="disabled:bg-rose-7:40"
+            p2 text-white :disabled="loadRecording"
+            @click="stopRecording"
+          >
+            <p v-if="!loadRecording">
+              Stop Recording
+            </p>
+            <p v-else>
+              Loading
+            </p>
+          </Button>
+        </template>
+        <template v-if="!recording">
+          <Button
+            rounded
+            bg-primary p2
+            text-black @click="startRecording"
+          >
+            Start Recording
+          </Button>
+        </template>
+      </div>
       <canvas
         ref="canvas"
-        class="h-auto w-[90%]"
+        class="h-[calc(100%_-_50px)] w-[100%]"
       />
     </div>
   </div>

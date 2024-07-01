@@ -3,7 +3,8 @@
 use std::time::{Instant, Duration};
 use std::sync::atomic::{AtomicBool, Ordering};
 use lazy_static::lazy_static;
-use std::{thread, sync::Arc};
+use std::sync::Arc;
+use std::thread;
 use tauri::Manager;
 use xcap::Monitor;
 
@@ -38,8 +39,8 @@ async fn start_recording(app_handle: tauri::AppHandle) -> Result<(), String> {
     let app_handle_clone = app_handle.clone();
     println!("Started Recording");
 
-    let seconds_per_frame = Duration::from_nanos(1_000_000_000 / 120);
-    let mut yuv = Vec::new();
+    let seconds_per_frame = Duration::from_nanos(1_000_000_000 / 240);
+    // let mut yuv = Vec::new();
 
 
     while !STOP_FLAG.load(Ordering::Acquire) {
@@ -48,9 +49,9 @@ async fn start_recording(app_handle: tauri::AppHandle) -> Result<(), String> {
 
         match monitor.capture_image() {
             Ok(frame) => {
-                convert::argb_to_i420(&frame, &mut yuv);               
+                // convert::argb_to_i420(&frame, &mut yuv);               
                 let payload = serde_json::json!({
-                    "data": yuv,
+                    "data": frame.into_raw(),
                     "pts": time.as_secs() * 1_000 + time.subsec_millis() as u64,
                     "width": width,
                     "height": height
