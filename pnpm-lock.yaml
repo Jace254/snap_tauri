@@ -20,15 +20,15 @@ dependencies:
   '@vueuse/head':
     specifier: ^2.0.0
     version: 2.0.0(vue@3.4.29)
-  node-screenshots:
-    specifier: ^0.2.0
-    version: 0.2.0
   nprogress:
     specifier: ^0.2.0
     version: 0.2.0
   pinia:
     specifier: ^2.1.7
     version: 2.1.7(typescript@5.4.5)(vue@3.4.29)
+  tauri-plugin-websocket-api:
+    specifier: github:tauri-apps/tauri-plugin-websocket#v1
+    version: github.com/tauri-apps/tauri-plugin-websocket/c23ba8b03953e459fd9a56ea6113b12461b78026
   vite-plugin-require:
     specifier: ^1.2.14
     version: 1.2.14(vite@5.3.1)(vue@3.4.29)
@@ -44,9 +44,6 @@ dependencies:
   vue-router:
     specifier: ^4.3.2
     version: 4.3.3(vue@3.4.29)
-  webm-muxer:
-    specifier: ^4.0.1
-    version: 4.0.1
 
 devDependencies:
   '@antfu/eslint-config':
@@ -2520,6 +2517,11 @@ packages:
     engines: {node: '>= 14.6.0', npm: '>= 6.6.0', yarn: '>= 1.19.1'}
     dev: false
 
+  /@tauri-apps/api@1.6.0:
+    resolution: {integrity: sha512-rqI++FWClU5I2UBp4HXFvl+sBWkdigBkxnpJDQUWttNyG7IZP4FwQGhTNL5EOw0vI8i6eSAJ5frLqO7n7jbJdg==}
+    engines: {node: '>= 14.6.0', npm: '>= 6.6.0', yarn: '>= 1.19.1'}
+    dev: false
+
   /@tauri-apps/cli-darwin-arm64@1.5.14:
     resolution: {integrity: sha512-lxoSOp3KKSqzHJa7iT32dukPGMlfsTuja1xXSgwR8o/fqzpYJY7FY/3ZxesP8HR66FcK+vtqa//HNqeOQ0mHkA==}
     engines: {node: '>= 10'}
@@ -2627,10 +2629,6 @@ packages:
       '@tauri-apps/cli-win32-x64-msvc': 1.5.14
     dev: true
 
-  /@types/dom-webcodecs@0.1.11:
-    resolution: {integrity: sha512-yPEZ3z7EohrmOxbk/QTAa0yonMFkNkjnVXqbGb7D4rMr+F1dGQ8ZUFxXkyLLJuiICPejZ0AZE9Rrk9wUCczx4A==}
-    dev: false
-
   /@types/eslint-scope@3.7.7:
     resolution: {integrity: sha512-MzMFlSLBqNF2gcHWO0G1vP/YQyfvrxZ0bF+u7mzUdZ1/xK4A4sru+nraZz5i3iEIk1l1uyicaDVTB4QbbEkAYg==}
     dependencies:
@@ -2716,10 +2714,6 @@ packages:
 
   /@types/web-bluetooth@0.0.20:
     resolution: {integrity: sha512-g9gZnnXVq7gM7v3tJCWV/qw7w+KeOlSHAhgF9RytFyifW6AF61hdT2ucrYhPq9hLs5JIryeupHV3qGk95dH9ow==}
-
-  /@types/wicg-file-system-access@2020.9.8:
-    resolution: {integrity: sha512-ggMz8nOygG7d/stpH40WVaNvBwuyYLnrg5Mbyf6bmsj/8+gb6Ei4ZZ9/4PNpcPNTT8th9Q8sM8wYmWGjMWLX/A==}
-    dev: false
 
   /@types/yauzl@2.10.3:
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
@@ -7671,91 +7665,6 @@ packages:
   /node-releases@2.0.14:
     resolution: {integrity: sha512-y10wOWt8yZpqXmOgRo77WaHEmhYQYGNA6y421PKsKYWEK8aW+cqAphborZDhqfyKrbZEN92CN1X2KbafY2s7Yw==}
 
-  /node-screenshots-darwin-arm64@0.2.0:
-    resolution: {integrity: sha512-dr7Q9L8NG84s28Hxo4qDKbm6EByG8yiNMW1yuWKjyZTqTZINuS8n6UjJT8bv0Ly5pzfK9suN7mvjeggU8D4Mdg==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [darwin]
-    requiresBuild: true
-    dev: false
-    optional: true
-
-  /node-screenshots-darwin-universal@0.2.0:
-    resolution: {integrity: sha512-HFgTg/b68Q4SkmFqI8CSHo2i/48uZXHMuwnguMzjJkdkzpqyxuwkWrTqT8+rmav1dkbwCdbqX7KQl88WZRCKew==}
-    engines: {node: '>= 10'}
-    os: [darwin]
-    requiresBuild: true
-    dev: false
-    optional: true
-
-  /node-screenshots-darwin-x64@0.2.0:
-    resolution: {integrity: sha512-26Er7a+ian+Foze6XyRAtZaL4GvOENBnjREpZ5ccGy4HbVsCIYTgQEn8xxBQWa4mVSYcDr+BeuA5xQ2NJH6o+Q==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [darwin]
-    requiresBuild: true
-    dev: false
-    optional: true
-
-  /node-screenshots-linux-x64-gnu@0.2.0:
-    resolution: {integrity: sha512-atFbna9yRxgGB9LmxrdrTM2X2rn8Pm/BOcU73VRTW0EM4cWAQxexVntXvNhvSZmK6NYY6M7/sFJuBsa2bMb0Tg==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [linux]
-    requiresBuild: true
-    dev: false
-    optional: true
-
-  /node-screenshots-linux-x64-musl@0.2.0:
-    resolution: {integrity: sha512-hGRhDxHujJVW9eYe0KsuA425Y8UK+U4PiKGvfe2X9oj7+XoOaDgChVW4THp2XgeVcvp1HsbtoE0vb3GEsAcwSg==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [linux]
-    requiresBuild: true
-    dev: false
-    optional: true
-
-  /node-screenshots-win32-arm64-msvc@0.2.0:
-    resolution: {integrity: sha512-74HW5d/Uk+vP0W+f/SHxWl4JCw2YuYsCKmHlgsBxuC+WgCkD6WoHbpML0iefQzb2HkM+zScITyVNCWokdiQRAw==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [win32]
-    requiresBuild: true
-    dev: false
-    optional: true
-
-  /node-screenshots-win32-ia32-msvc@0.2.0:
-    resolution: {integrity: sha512-A8gksrGw0S+v9JiLUbs4N4nstqwDggI1WMqEnthcXWj/uhxXTh2EXKblcoztfJQj+g1eBRSkB+buIIlywSzI7Q==}
-    engines: {node: '>= 10'}
-    cpu: [ia32]
-    os: [win32]
-    requiresBuild: true
-    dev: false
-    optional: true
-
-  /node-screenshots-win32-x64-msvc@0.2.0:
-    resolution: {integrity: sha512-a9fKNHrNMk1RgJ/hhZD6Xk6p+WX0zAoLZoQGfrb06vUqCcfmgda8i+c4Y1WGlYBvQY9u929Cfe1OhXmznhFd9A==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [win32]
-    requiresBuild: true
-    dev: false
-    optional: true
-
-  /node-screenshots@0.2.0:
-    resolution: {integrity: sha512-O5WvrA/Mrreetaswc60/Uv90+6d4gHlI3CLfb+0NWN/h/Fl5sTSNC7iq21rHOgxuQT/nhIFyr+eATUx4nIf6EA==}
-    engines: {node: '>= 10'}
-    optionalDependencies:
-      node-screenshots-darwin-arm64: 0.2.0
-      node-screenshots-darwin-universal: 0.2.0
-      node-screenshots-darwin-x64: 0.2.0
-      node-screenshots-linux-x64-gnu: 0.2.0
-      node-screenshots-linux-x64-musl: 0.2.0
-      node-screenshots-win32-arm64-msvc: 0.2.0
-      node-screenshots-win32-ia32-msvc: 0.2.0
-      node-screenshots-win32-x64-msvc: 0.2.0
-    dev: false
-
   /nopt@7.2.1:
     resolution: {integrity: sha512-taM24ViiimT/XntxbPyJQzCG+p4EKOpgD3mxFwW38mGjVUrfERQOeY4EDHjdnptttfHuHQXFx+lTP08Q+mLa/w==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
@@ -10320,13 +10229,6 @@ packages:
     engines: {node: '>=12'}
     dev: true
 
-  /webm-muxer@4.0.1:
-    resolution: {integrity: sha512-qFMWhY9A+nYDGUIxoUT0EmZ2Z3Ls+5jP4zlEYPpppZRUHFFU70Hk2udfPxwdB4xiYnBDiDX8g1IfHXRsn0AwGw==}
-    dependencies:
-      '@types/dom-webcodecs': 0.1.11
-      '@types/wicg-file-system-access': 2020.9.8
-    dev: false
-
   /webpack-sources@3.2.3:
     resolution: {integrity: sha512-/DyMEOrDgLKKIG0fmvtz+4dUX/3Ghozwgm6iPp8KRhvn+eQf9+Q7GWxVNMk3+uCPWfdXYC4ExGBckIXdFEfH1w==}
     engines: {node: '>=10.13.0'}
@@ -10719,3 +10621,11 @@ packages:
 
   /zhead@2.2.4:
     resolution: {integrity: sha512-8F0OI5dpWIA5IGG5NHUg9staDwz/ZPxZtvGVf01j7vHqSyZ0raHY+78atOVxRqb73AotX22uV1pXt3gYSstGag==}
+
+  github.com/tauri-apps/tauri-plugin-websocket/c23ba8b03953e459fd9a56ea6113b12461b78026:
+    resolution: {tarball: https://codeload.github.com/tauri-apps/tauri-plugin-websocket/tar.gz/c23ba8b03953e459fd9a56ea6113b12461b78026}
+    name: tauri-plugin-websocket-api
+    version: 0.0.0
+    dependencies:
+      '@tauri-apps/api': 1.6.0
+    dev: false

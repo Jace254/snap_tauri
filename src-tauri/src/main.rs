@@ -1,20 +1,23 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::time::{Instant, Duration};
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use lazy_static::lazy_static;
-use std::sync::Arc;
 use std::thread;
 use tauri::Manager;
 use scrap::{Capturer, Display};
 use std::io::ErrorKind::WouldBlock;
-use kanal::{unbounded, Sender, Receiver};
-use std::cmp::min;
+use futures_util::{StreamExt, SinkExt};
+use tokio::net::{TcpListener, TcpStream};
+use tokio_tungstenite::tungstenite::protocol::Message;
 
 mod convert;
 
 lazy_static! {
     static ref STOP_FLAG: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    static ref FRAME_BUFFER: Arc<Mutex<Vec<(Vec<u8>, Duration, u32, u32)>>> = Arc::new(Mutex::new(Vec::new()));
+    static ref CAPTURING: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 }
 
 #[tauri::command]
@@ -23,7 +26,7 @@ fn stop_recording() {
     println!("Stopped recording");
 }
 
-fn capture_frames(tx: Sender<(Vec<u8>, Duration)>) -> Result<(), String> {
+fn capture_frames(width: u32, height: u32) -> Result<(), String> {
     let monitors = Display::all().unwrap();
 
     let monitor = if monitors.is_empty() {
@@ -52,9 +55,7 @@ fn capture_frames(tx: Sender<(Vec<u8>, Duration)>) -> Result<(), String> {
                 if is_different {
                     prev_frame = Some(frame_data.clone());
                     println!("captured frame, {}", time.as_secs() * 1_000 + time.subsec_millis() as u64);
-                    if tx.send((frame_data, time)).is_err() {
-                        break;
-                    }
+                    FRAME_BUFFER.lock().unwrap().push((frame_data, time, width, height));
                 }
             },
             Err(ref e) if e.kind() == WouldBlock => {
@@ -94,18 +95,31 @@ fn is_frame_different(prev: &[u8], current: &[u8]) -> bool {
     false
 }
 
-fn emit_frames(rx: Receiver<(Vec<u8>, Duration)>, app_handle: tauri::AppHandle, width: u32, height: u32) {
-    while let Ok((frame_data, time)) = rx.recv() {
-        let payload = serde_json::json!({
-            "data": frame_data,
-            "pts": time.as_secs() * 1_000 + time.subsec_millis() as u64,
-            "width": width,
-            "height": height
-        });
-        match app_handle.emit_all("frame", payload.to_string()) {
-            Ok(_) => println!("emitting frame, {}", time.as_secs() * 1_000 + time.subsec_millis() as u64),
-            Err(e) => eprintln!("Failed to emit frame: {}", e)
+async fn emit_frames(mut ws_sender: SplitSink<WebSocketStream<TcpStream>, Message>) {
+    while CAPTURING.load(Ordering::Acquire) {
+        // Clone the buffer contents and release the lock immediately
+        let frames: Vec<(Vec<u8>, Duration, u32, u32)> = {
+            let buffer = FRAME_BUFFER.lock().unwrap();
+            let frames = buffer.clone();
+            frames
+        };
+
+        // Emit each frame in the cloned buffer
+        for (frame_data, time, width, height) in frames {
+            let payload = serde_json::json!({
+                "data": frame_data,
+                "pts": time.as_secs() * 1_000 + time.subsec_millis() as u64,
+                "width": width,
+                "height": height
+            }).to_string();
+            match app_handle.emit_all("frame", payload) {
+                Ok(_) => println!("emitting frame, {}", time.as_secs() * 1_000 + time.subsec_millis() as u64),
+                Err(e) => eprintln!("Failed to emit frame: {}", e)
+            }
         }
+
+        // Sleep to avoid busy-waiting
+        tokio::time::sleep(Duration::from_millis(10)).await; // Adjust the sleep duration as needed
     }
 }
 
@@ -123,27 +137,26 @@ async fn start_recording(app_handle: tauri::AppHandle) -> Result<(), String> {
     let height = monitor.height() as u32;
 
     STOP_FLAG.store(false, Ordering::Release);
+    CAPTURING.store(true, Ordering::Release);
     println!("Started Recording");
 
-    let (tx, rx) = unbounded();
     let app_handle_clone = app_handle.clone();
 
     thread::spawn(move || {
-        if let Err(e) = capture_frames(tx) {
+        if let Err(e) = capture_frames(width, height) {
             eprintln!("Capture error: {}", e);
         }
-    });
-
-    thread::spawn(move || {
-        emit_frames(rx, app_handle_clone, width, height);
+        CAPTURING.store(false, Ordering::Release);
     });
 
     Ok(())
 }
 
 fn main() {
+    tauri::async_runtime::spawn(start_server());
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![start_recording, stop_recording])
+        .plugin(tauri_plugin_websocket::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
